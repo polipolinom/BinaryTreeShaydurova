@@ -1,8 +1,9 @@
-#include <cassert>
 #include <vector>
 
 template<class T>
 class Set{
+    struct Node;
+
 public:
     Set() {
         root = nullptr;
@@ -54,48 +55,21 @@ public:
         return (*this);
     }
 
-    enum COLORS{Red = 0, Black = 1};
-
-    struct Node{
-        T key;
-        Node* left;
-        Node* right;
-        COLORS color;
-        Node* mother;
-
-        Node() {
-            left = nullptr;
-            right = nullptr;
-            color = Red;
-            key = 0;
-            mother = nullptr;
-        }
-
-        Node(T key_): key(key_) {
-            left = nullptr;
-            right = nullptr;
-            color = Red;
-            mother = this;
-        }
-    };
-
-    class iterator{
+    class Iterator{
     public:
-        iterator() {
+        Iterator() {
             set = nullptr;
             pointer = nullptr;
         }
-        iterator(const Set* set_, Node* pointer_): set(set_), pointer(pointer_) {};
-        iterator(const iterator& other): set(other.set), pointer(other.pointer) {};
+        Iterator(const Set* set_, Node* pointer_): set(set_), pointer(pointer_) {};
+        Iterator(const Iterator& other): set(other.set), pointer(other.pointer) {};
 
-        void operator=(const iterator& other) {
+        void operator=(const Iterator& other) {
             set = other.set;
             pointer = other.pointer;
         }
 
-        iterator operator++() {
-            assert(pointer != nullptr);
-
+        Iterator operator++() {
             if (pointer->right != nullptr) {
                 pointer = pointer->right;
                 while (pointer->left != nullptr) {
@@ -117,14 +91,13 @@ public:
             return *this;
         }
 
-        iterator operator++(int) {
+        Iterator operator++(int) {
             auto result = *this;
             ++(*this);
             return result;
         }
 
-        iterator operator--() {
-
+        Iterator operator--() {
             if (pointer == nullptr) {
                 pointer = set->root;
                 while (pointer->right != nullptr) {
@@ -132,8 +105,6 @@ public:
                 }
                 return *this;
             }
-
-            assert(*this != set->begin());
 
             if (pointer->left != nullptr) {
                 pointer = pointer->left;
@@ -150,27 +121,25 @@ public:
             return *this;
         }
 
-        iterator operator--(int) {
+        Iterator operator--(int) {
             auto result = *this;
             --(*this);
             return result;
         }
 
-        bool operator==(const iterator& other) const {
+        bool operator==(const Iterator& other) const {
             return (set == other.set) && (pointer == other.pointer);
         }
 
-        bool operator!=(const iterator& other) const {
+        bool operator!=(const Iterator& other) const {
             return !(*this == other);
         }
 
         const T& operator*() const {
-            assert(pointer != nullptr);
             return (pointer->key);
         }
 
         const T* operator->() const {
-            assert(pointer != nullptr);
             return &(pointer->key);
         }
 
@@ -183,7 +152,7 @@ public:
         return (root == other.root) && (sz == other.sz);
     }
 
-    iterator begin() const {
+    Iterator begin() const {
         if (root == nullptr) {
             return end();
         }
@@ -191,11 +160,11 @@ public:
         while (now->left != nullptr) {
             now = now->left;
         }
-        return iterator(this, now);
+        return Iterator(this, now);
     }
 
-    iterator end() const {
-        return iterator(this, nullptr);
+    Iterator end() const {
+        return Iterator(this, nullptr);
     }
 
     void insert(T key) {
@@ -220,248 +189,272 @@ public:
         return (sz == 0);
     }
 
-    iterator find(T key) const {
-        Node* v = find(root, key);
-        return iterator(this, v);
+    Iterator find(T key) const {
+        Node* vertex = find(root, key);
+        return Iterator(this, vertex);
     }
 
-    iterator lower_bound(T key) const {
-        Node* v = lower_bound(root, key);
-        return iterator(this, v);
+    Iterator lower_bound(T key) const {
+        Node* vertex = lower_bound(root, key);
+        return Iterator(this, vertex);
     }
 
 private:
-    void black_color(Node* v) const {
-        if (v == nullptr) {
+    enum COLORS{Red = 0, Black = 1};
+
+   struct Node{
+       T key;
+       Node* left;
+       Node* right;
+       COLORS color;
+       Node* mother;
+
+        Node() {
+            left = nullptr;
+            right = nullptr;
+            color = Red;
+            key = 0;
+            mother = nullptr;
+        }
+
+        Node(T key_): key(key_) {
+            left = nullptr;
+            right = nullptr;
+            color = Red;
+            mother = this;
+        }
+   };
+
+    void black_color(Node* vertex) const {
+        if (vertex == nullptr) {
             return;
         }
-        v->color = Black;
+        vertex->color = Black;
     }
 
-    COLORS get_color(Node* v) const {
-        if (v == nullptr) {
+    COLORS get_color(Node* vertex) const {
+        if (vertex == nullptr) {
             return Black;
         }
-        return (v->color);
+        return (vertex->color);
     }
 
-    Node* left_rotate(Node* v) {
-        if (v == nullptr || (v->right) == nullptr) {
-            return v;
+    Node* left_rotate(Node* vertex) {
+        if (vertex == nullptr || (vertex->right) == nullptr) {
+            return vertex;
         }
-        Node* t = v->right;
-        v->right = t->left;
-        t->left = v;
-        t->color = v->color;
-        v->color = Red;
-        if (v->mother == v) {
-            t->mother = t;
+        Node* right_child = vertex->right;
+        vertex->right = right_child->left;
+        right_child->left = vertex;
+        right_child->color = vertex->color;
+        vertex->color = Red;
+        if (vertex->mother == vertex) {
+            right_child->mother = right_child;
         } else {
-            t->mother = v->mother;
+            right_child->mother = vertex->mother;
         }
-        v->mother = t;
-        upd_mother(v);
-        upd_mother(t);
-        return t;
+        vertex->mother = right_child;
+        upd_mother(vertex);
+        upd_mother(right_child);
+        return right_child;
     }
 
-    Node* right_rotate(Node* v) {
-        if (v == nullptr || (v->left) == nullptr) {
-            return v;
+    Node* right_rotate(Node* vertex) {
+        if (vertex == nullptr || (vertex->left) == nullptr) {
+            return vertex;
         }
-        Node* t = v->left;
-        v->left = t->right;
-        t->right = v;
-        t->color = v->color;
-        v->color = Red;
-        if (v->mother == v) {
-            t->mother = t;
+        Node* left_child = vertex->left;
+        vertex->left = left_child->right;
+        left_child->right = vertex;
+        left_child->color = vertex->color;
+        vertex->color = Red;
+        if (vertex->mother == vertex) {
+            left_child->mother = left_child;
         } else {
-            t->mother = v->mother;
+            left_child->mother = vertex->mother;
         }
-        v->mother = t;
-        upd_mother(v);
-        upd_mother(t);
-        return t;
+        vertex->mother = left_child;
+        upd_mother(vertex);
+        upd_mother(left_child);
+        return left_child;
     }
 
-    void change_color(Node* v) {
-        if (v == nullptr) {
+    void change_color(Node* vertex) {
+        if (vertex == nullptr) {
             return;
         }
-        if (v->color == Red) {
-            v->color = Black;
+        if (vertex->color == Red) {
+            vertex->color = Black;
             return;
         }
-        v->color = Red;
+        vertex->color = Red;
         return;
     }
 
-    void flip(Node* v) {
-        if (v == nullptr) {
+    void flip(Node* vertex) {
+        if (vertex == nullptr) {
             return;
         }
-        change_color(v);
-        change_color(v->left);
-        change_color(v->right);
+        change_color(vertex);
+        change_color(vertex->left);
+        change_color(vertex->right);
     }
 
-    void upd_mother(Node* v) {
-        if (v == nullptr) {
+    void upd_mother(Node* vertex) {
+        if (vertex == nullptr) {
             return;
         }
-        if (v->left != nullptr) {
-            v->left->mother = v;
+        if (vertex->left != nullptr) {
+            vertex->left->mother = vertex;
         }
-        if (v->right != nullptr) {
-            v->right->mother = v;
+        if (vertex->right != nullptr) {
+            vertex->right->mother = vertex;
         }
     }
 
-    bool is_equal_keys(const T& a, const T& b) const {
-        return !(a < b) && !(b < a);
+    bool is_equal_keys(const T& first, const T& second) const {
+        return !(first < second) && !(second < first);
     }
 
-    Node* insert(Node* v, T key) {
-        if (v == nullptr) {
+    Node* insert(Node* vertex, T key) {
+        if (vertex == nullptr) {
             sz += 1;
             return new Node(key);
         }
 
-        if (is_equal_keys(v->key, key)) {
-            return v;
+        if (is_equal_keys(vertex->key, key)) {
+            return vertex;
         }
-        if (key < v->key) {
-            v->left = insert(v->left, key);
+        if (key < vertex->key) {
+            vertex->left = insert(vertex->left, key);
         } else {
-            v->right = insert(v->right, key);
+            vertex->right = insert(vertex->right, key);
         }
 
-        if (get_color(v->left) == Black && get_color(v->right) == Red) {
-            v = left_rotate(v);
+        if (get_color(vertex->left) == Black && get_color(vertex->right) == Red) {
+            vertex = left_rotate(vertex);
         }
-        if (v->left != nullptr && get_color(v->left) == Red && get_color(v->left->left) == Red) {
-            v = right_rotate(v);
+        if (vertex->left != nullptr && get_color(vertex->left) == Red && get_color(vertex->left->left) == Red) {
+            vertex = right_rotate(vertex);
         }
-        if (get_color(v->left) == Red && get_color(v->right) == Red) {
-            flip(v);
+        if (get_color(vertex->left) == Red && get_color(vertex->right) == Red) {
+            flip(vertex);
         }
-        upd_mother(v);
-        return v;
+        upd_mother(vertex);
+        return vertex;
     }
 
-    Node* left_move(Node* v) {
-        flip(v);
-        if (v->right == nullptr || get_color(v->right->left) == Black) {
-            return v;
+    Node* left_move(Node* vertex) {
+        flip(vertex);
+        if (vertex->right == nullptr || get_color(vertex->right->left) == Black) {
+            return vertex;
         }
-        v->right = right_rotate(v->right);
-        v = left_rotate(v);
-        flip(v);
-        return v;
+        vertex->right = right_rotate(vertex->right);
+        vertex = left_rotate(vertex);
+        flip(vertex);
+        return vertex;
     }
 
-    Node* right_move(Node* v) {
-        flip(v);
-        if (v->left == nullptr || get_color(v->left->left) == Black) {
-            return v;
+    Node* right_move(Node* vertex) {
+        flip(vertex);
+        if (vertex->left == nullptr || get_color(vertex->left->left) == Black) {
+            return vertex;
         }
-        v = right_rotate(v);
-        flip(v);
-        return v;
+        vertex = right_rotate(vertex);
+        flip(vertex);
+        return vertex;
     }
 
-    Node* relax(Node* v) {
-        if (get_color(v->left) == Black && get_color(v->right) == Red) {
-            v = left_rotate(v);
+    Node* relax(Node* vertex) {
+        if (get_color(vertex->left) == Black && get_color(vertex->right) == Red) {
+            vertex = left_rotate(vertex);
         }
-        if (v->left != nullptr && get_color(v->left) == Red && get_color(v->left->left) == Red) {
-            v = right_rotate(v);
+        if (vertex->left != nullptr && get_color(vertex->left) == Red && get_color(vertex->left->left) == Red) {
+            vertex = right_rotate(vertex);
         }
-        if (get_color(v->left) == Red && get_color(v->right) == Red) {
-            flip(v);
+        if (get_color(vertex->left) == Red && get_color(vertex->right) == Red) {
+            flip(vertex);
         }
-        return v;
+        return vertex;
     }
 
-    T get_min(Node* v) {
-        assert(v != nullptr);
-        if (v->left == nullptr) {
-            return v->key;
+    T get_min(Node* vertex) {
+        if (vertex->left == nullptr) {
+            return vertex->key;
         }
-        return get_min(v->left);
+        return get_min(vertex->left);
     }
 
-    Node* erase_min(Node* v) {
-        if (v->left == nullptr) {
+    Node* erase_min(Node* vertex) {
+        if (vertex->left == nullptr) {
             sz -= 1;
-            delete v;
+            delete vertex;
             return nullptr;
         }
-        if (get_color(v->left) == Black && get_color(v->left->left) == Black) {
-            v = left_move(v);
+        if (get_color(vertex->left) == Black && get_color(vertex->left->left) == Black) {
+            vertex = left_move(vertex);
         }
-        v->left = erase_min(v->left);
-        v = relax(v);
-        return v;
+        vertex->left = erase_min(vertex->left);
+        vertex = relax(vertex);
+        return vertex;
     }
 
-    Node* erase(Node* v, T key) {
-        if (v == nullptr) {
+    Node* erase(Node* vertex, T key) {
+        if (vertex == nullptr) {
             return nullptr;
         }
 
-        if (key < v->key) {
-            if (v->left != nullptr && get_color(v->left) == Black && get_color(v->left->left) == Black) {
-                v = left_move(v);
+        if (key < vertex->key) {
+            if (vertex->left != nullptr && get_color(vertex->left) == Black && get_color(vertex->left->left) == Black) {
+                vertex = left_move(vertex);
             }
-            v->left = erase(v->left, key);
-            v = relax(v);
-            return v;
+            vertex->left = erase(vertex->left, key);
+            vertex = relax(vertex);
+            return vertex;
         }
 
-        if (get_color(v->left) == Red) {
-            v = right_rotate(v);
+        if (get_color(vertex->left) == Red) {
+            vertex = right_rotate(vertex);
         }
-        if (is_equal_keys(key, v->key) && v->right == nullptr) {
-            delete v;
+        if (is_equal_keys(key, vertex->key) && vertex->right == nullptr) {
+            delete vertex;
             sz -= 1;
             return nullptr;
         }
-        if (v->right != nullptr && get_color(v->right) == Black && get_color(v->right->left) == Black) {
-            v = right_move(v);
+        if (vertex->right != nullptr && get_color(vertex->right) == Black && get_color(vertex->right->left) == Black) {
+            vertex = right_move(vertex);
         }
-        if (is_equal_keys(key, v->key)) {
-            v->key = get_min(v->right);
-            v->right = erase_min(v->right);
+        if (is_equal_keys(key, vertex->key)) {
+            vertex->key = get_min(vertex->right);
+            vertex->right = erase_min(vertex->right);
         } else {
-            v->right = erase(v->right, key);
+            vertex->right = erase(vertex->right, key);
         }
-        v = relax(v);
-        return v;
+        vertex = relax(vertex);
+        return vertex;
     }
 
-    void get_keys(Node* v, std::vector < T >& keys) const {
-        if (v == nullptr) {
+    void get_keys(Node* vertex, std::vector < T >& keys) const {
+        if (vertex == nullptr) {
             return;
         }
-        get_keys(v->left, keys);
-        keys.emplace_back(v->key);
-        get_keys(v->right, keys);
+        get_keys(vertex->left, keys);
+        keys.emplace_back(vertex->key);
+        get_keys(vertex->right, keys);
     }
 
-    void get_nodes(Node* v, std::vector < Node* >& nodes) const {
-        if (v == nullptr) {
+    void get_nodes(Node* vertex, std::vector < Node* >& nodes) const {
+        if (vertex == nullptr) {
             return;
         }
-        get_nodes(v->left, nodes);
-        nodes.emplace_back(v);
-        get_nodes(v->right, nodes);
+        get_nodes(vertex->left, nodes);
+        nodes.emplace_back(vertex);
+        get_nodes(vertex->right, nodes);
     }
 
-    void clear(Node* v) {
+    void clear(Node* vertex) {
         std::vector < Node* > nodes;
-        get_nodes(v, nodes);
+        get_nodes(vertex, nodes);
         for (auto& node : nodes) {
             delete node;
         }
@@ -469,34 +462,34 @@ private:
         root =  nullptr;
     }
 
-    Node* find(Node* v, T key) const {
-        if (v == nullptr) {
+    Node* find(Node* vertex, T key) const {
+        if (vertex == nullptr) {
             return nullptr;
         }
-        if (is_equal_keys(key, v->key)) {
-            return v;
+        if (is_equal_keys(key, vertex->key)) {
+            return vertex;
         }
-        if (key < v->key) {
-            return find(v->left, key);
+        if (key < vertex->key) {
+            return find(vertex->left, key);
         }
-        return find(v->right, key);
+        return find(vertex->right, key);
     }
 
-    Node* lower_bound(Node* v, T key) const {
-        if (v == nullptr) {
+    Node* lower_bound(Node* vertex, T key) const {
+        if (vertex == nullptr) {
             return nullptr;
         }
-        if (is_equal_keys(key, v->key)) {
-            return v;
+        if (is_equal_keys(key, vertex->key)) {
+            return vertex;
         }
-        if (key < v->key) {
-            Node* t = lower_bound(v->left, key);
-            if (t == nullptr) {
-                return v;
+        if (key < vertex->key) {
+            Node* tmp = lower_bound(vertex->left, key);
+            if (tmp == nullptr) {
+                return vertex;
             }
-            return t;
+            return tmp;
         }
-        return lower_bound(v->right, key);
+        return lower_bound(vertex->right, key);
     }
 
     Node* root;
